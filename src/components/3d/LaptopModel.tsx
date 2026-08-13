@@ -72,7 +72,7 @@ function InstancedKeycapDeck({
         const posX = startX + c * spacing;
         const posZ = startZ + r * spacing;
 
-        dummy.position.set(posX, 0.006, posZ);
+        dummy.position.set(posX, 0.008, posZ);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
 
@@ -88,7 +88,7 @@ function InstancedKeycapDeck({
         const posX = numpadStartX + c * spacing;
         const posZ = startZ + r * spacing;
 
-        dummy.position.set(posX, 0.006, posZ);
+        dummy.position.set(posX, 0.008, posZ);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
 
@@ -118,6 +118,9 @@ function InstancedKeycapDeck({
           emissive={emissiveColor}
           emissiveIntensity={emissiveInt}
           roughness={0.4}
+          polygonOffset
+          polygonOffsetFactor={-1}
+          polygonOffsetUnits={-1}
         />
       </instancedMesh>
     </group>
@@ -133,8 +136,9 @@ export function LaptopModel({
   onModelLoaded,
 }: LaptopModelProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const [glbLoaded, setGlbLoaded] = useState(false);
+  const [modelStatus, setModelStatus] = useState<'LOADING' | 'SUCCESS' | 'ERROR'>('LOADING');
   const registryRef = useRef<LaptopPartRegistry>({});
+  const normalizedSceneRef = useRef<THREE.Object3D | null>(null);
 
   // Dynamic 165Hz Display Texture Generator
   const displayCanvas = useMemo(() => {
@@ -216,7 +220,12 @@ export function LaptopModel({
 
   useEffect(() => {
     if (gltfData && gltfData.scene) {
-      normalizeLaptopTransform(gltfData.scene, 2.4);
+      // Guarantee normalizeLaptopTransform runs ONCE per scene instance
+      if (normalizedSceneRef.current !== gltfData.scene) {
+        normalizeLaptopTransform(gltfData.scene, 2.4);
+        normalizedSceneRef.current = gltfData.scene;
+      }
+
       const reg = registerLaptopParts(gltfData.scene);
       registryRef.current = reg;
 
@@ -231,12 +240,13 @@ export function LaptopModel({
         }
       });
 
-      setGlbLoaded(true);
+      setModelStatus('SUCCESS');
       onModelLoaded?.(true, reg);
     } else {
       if (groupRef.current) {
         const reg = registerLaptopParts(groupRef.current);
         registryRef.current = reg;
+        setModelStatus('ERROR');
         onModelLoaded?.(false, reg);
       }
     }
@@ -292,7 +302,7 @@ export function LaptopModel({
 
   // Update specific node materials for GLB loaded model
   useEffect(() => {
-    if (!glbLoaded || !registryRef.current) return;
+    if (modelStatus !== 'SUCCESS' || !registryRef.current) return;
 
     const reg = registryRef.current;
 
@@ -315,10 +325,10 @@ export function LaptopModel({
         }
       });
     }
-  }, [glbLoaded, keyboardHighlight, nitroSenseEmissive, nitroSenseIntensity, trackpadEmissive, trackpadIntensity]);
+  }, [modelStatus, keyboardHighlight, nitroSenseEmissive, nitroSenseIntensity, trackpadEmissive, trackpadIntensity]);
 
-  // Real GLB Scene render
-  if (glbLoaded && gltfData?.scene) {
+  // Real GLB Scene render (SUCCESS status state guarantees 100% deterministic model render)
+  if (modelStatus === 'SUCCESS' && gltfData?.scene) {
     return (
       <group ref={groupRef} position={[0, -0.15, 0]} rotation={[0.15, -0.45, 0.05]}>
         <primitive object={gltfData.scene} />
@@ -340,6 +350,9 @@ export function LaptopModel({
               emissiveIntensity={copilotIntensity}
               transparent
               opacity={0.85}
+              polygonOffset
+              polygonOffsetFactor={-1}
+              polygonOffsetUnits={-1}
             />
           </mesh>
         ) : null}
@@ -433,7 +446,7 @@ export function LaptopModel({
     );
   }
 
-  // Production-grade procedural model fallback
+  // Production-grade procedural model fallback (Only on ERROR status state)
   return (
     <group ref={groupRef} position={[0, -0.15, 0]} rotation={[0.15, -0.45, 0.05]}>
       {/* BASE CHASSIS */}
