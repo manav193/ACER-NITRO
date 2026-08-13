@@ -40,7 +40,7 @@ interface LaptopModelProps {
   onModelLoaded?: (isRealGLB: boolean, registry: LaptopPartRegistry) => void;
 }
 
-// GPU-Instanced Keycap Deck Mesh Overlay (102 Keys)
+// BUG 1 FIX: GPU-Instanced Keycap Deck Mesh Overlay (102 Keys seated flush on Plane.077_10)
 function InstancedKeycapDeck({
   backlightColor,
   backlightIntensity,
@@ -72,7 +72,8 @@ function InstancedKeycapDeck({
         const posX = startX + c * spacing;
         const posZ = startZ + r * spacing;
 
-        dummy.position.set(posX, 0.008, posZ);
+        // Seated Y height Y = 0.0015 flush with Plane.077_10 deck surface
+        dummy.position.set(posX, 0.0015, posZ);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
 
@@ -88,7 +89,7 @@ function InstancedKeycapDeck({
         const posX = numpadStartX + c * spacing;
         const posZ = startZ + r * spacing;
 
-        dummy.position.set(posX, 0.008, posZ);
+        dummy.position.set(posX, 0.0015, posZ);
         dummy.scale.set(1, 1, 1);
         dummy.updateMatrix();
 
@@ -110,9 +111,9 @@ function InstancedKeycapDeck({
       : backlightIntensity;
 
   return (
-    <group position={[0, 0.005, 0]}>
+    <group position={[0, 0.001, 0]}>
       <instancedMesh ref={instancedRef} args={[undefined, undefined, keyCount]}>
-        <boxGeometry args={[0.055, 0.008, 0.055]} />
+        <boxGeometry args={[0.055, 0.003, 0.055]} />
         <meshStandardMaterial
           color="#161820"
           emissive={emissiveColor}
@@ -192,7 +193,11 @@ export function LaptopModel({
     ctx.font = '18px monospace';
     ctx.fillText('AMD RYZEN 5 6600H  •  NVIDIA GEFORCE RTX 3050', 512, 490);
 
-    return new THREE.CanvasTexture(canvas);
+    const texture = new THREE.CanvasTexture(canvas);
+    // BUG 4 FIX: Orient screen canvas texture right side up (180 deg rotation around center)
+    texture.center.set(0.5, 0.5);
+    texture.rotation = Math.PI;
+    return texture;
   }, []);
 
   // Texture Memory Cleanup on Unmount
@@ -229,12 +234,16 @@ export function LaptopModel({
       const reg = registerLaptopParts(gltfData.scene);
       registryRef.current = reg;
 
-      // Apply display texture specifically to display screen mesh primitive
+      // BUG 2 FIX: Target ONLY actual display screen mesh primitive (Object_8 / Material Display)
+      // Set FrontSide to prevent screen texture from leaking through the rear lid or bezel
       gltfData.scene.traverse((child: any) => {
         if (child.isMesh && child.material) {
           const matName = child.material.name ? child.material.name.toLowerCase() : '';
-          if (matName.includes('display') && displayCanvas) {
+          const meshName = child.name ? child.name.toLowerCase() : '';
+
+          if ((matName === 'display' || meshName === 'object_8') && displayCanvas) {
             child.material.map = displayCanvas;
+            child.material.side = THREE.FrontSide;
             child.material.needsUpdate = true;
           }
         }
@@ -328,12 +337,13 @@ export function LaptopModel({
   }, [modelStatus, keyboardHighlight, nitroSenseEmissive, nitroSenseIntensity, trackpadEmissive, trackpadIntensity]);
 
   // Real GLB Scene render (SUCCESS status state guarantees 100% deterministic model render)
+  // BUG 3 FIX: Presentation position = [0, 0.02, 0] raises laptop into perfect hero composition framing
   if (modelStatus === 'SUCCESS' && gltfData?.scene) {
     return (
-      <group ref={groupRef} position={[0, -0.15, 0]} rotation={[0.15, -0.45, 0.05]}>
+      <group ref={groupRef} position={[0, 0.02, 0]} rotation={[0.15, -0.45, 0.05]}>
         <primitive object={gltfData.scene} />
 
-        {/* GPU-Instanced Keycap Deck Overlay (102 Keys) */}
+        {/* GPU-Instanced Keycap Deck Overlay (102 Keys seated flush on Plane.077_10) */}
         <InstancedKeycapDeck
           backlightColor={backlightConfig.color}
           backlightIntensity={backlightConfig.intensity}
@@ -342,8 +352,8 @@ export function LaptopModel({
 
         {/* Spatial Overlay for Copilot Key */}
         {keyboardHighlight === 'COPILOT' || keyboardHighlight === 'FULL_INPUT' ? (
-          <mesh position={[0.22, 0.008, 0.38]}>
-            <boxGeometry args={[0.08, 0.005, 0.08]} />
+          <mesh position={[0.22, 0.004, 0.38]}>
+            <boxGeometry args={[0.08, 0.003, 0.08]} />
             <meshStandardMaterial
               color="#3b82f6"
               emissive={copilotEmissive}
@@ -448,7 +458,7 @@ export function LaptopModel({
 
   // Production-grade procedural model fallback (Only on ERROR status state)
   return (
-    <group ref={groupRef} position={[0, -0.15, 0]} rotation={[0.15, -0.45, 0.05]}>
+    <group ref={groupRef} position={[0, 0.02, 0]} rotation={[0.15, -0.45, 0.05]}>
       {/* BASE CHASSIS */}
       <mesh name="chassis" position={[0, -0.04, 0]} castShadow receiveShadow>
         <boxGeometry args={[2.4, 0.08, 1.6]} />
