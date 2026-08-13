@@ -2,6 +2,7 @@
 
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import { Environment } from './Environment';
 import { Lighting } from './Lighting';
 import { CameraRig } from './CameraRig';
@@ -25,6 +26,19 @@ interface NitroSceneProps {
   portHighlight?: PortHighlightMode;
   showAirflow?: boolean;
   onModelLoaded?: (isRealGLB: boolean, registry: LaptopPartRegistry) => void;
+}
+
+function SceneLoader() {
+  return (
+    <Html center>
+      <div className="font-mono text-xs text-slate-200 uppercase tracking-widest bg-nitro-card/95 backdrop-blur-md px-5 py-2.5 rounded-full border border-nitro-border shadow-2xl flex items-center gap-3 select-none pointer-events-none whitespace-nowrap">
+        <span className="w-2 h-2 bg-nitro-red rounded-full animate-ping" />
+        <span className="font-bold text-white">NITRO ANV15-41</span>
+        <span className="text-nitro-muted">•</span>
+        <span className="text-slate-400">INITIALIZING EXPERIENCE</span>
+      </div>
+    </Html>
+  );
 }
 
 export function NitroScene({
@@ -59,7 +73,7 @@ export function NitroScene({
           depth: true,
         }}
       >
-        <Suspense fallback={null}>
+        <Suspense fallback={<SceneLoader />}>
           <Environment lightingPreset={lightingPreset} />
           <Lighting preset={lightingPreset} />
           <CameraRig presetName={cameraPreset} reducedMotion={reducedMotion} />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import { CameraPresetName } from '@/lib/cameraPresets';
 import { globalLaptopController } from '@/animations/laptopController';
 
@@ -55,7 +55,7 @@ export function ProductExplorer({ onCategorySelect }: ProductExplorerProps) {
 
     const group = globalLaptopController.getGroup();
     if (group) {
-      // Clamped rotaton to prevent flipping or disappearing behind camera
+      // Clamped rotation to prevent flipping or disappearing behind camera
       const newRy = THREE_Math_clamp(group.rotation.y + deltaX * 0.005, -0.8, 0.8);
       const newRx = THREE_Math_clamp(group.rotation.x + deltaY * 0.005, -0.5, 0.5);
       group.rotation.y = newRy;
@@ -68,9 +68,9 @@ export function ProductExplorer({ onCategorySelect }: ProductExplorerProps) {
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col justify-between p-6 md:p-12 pointer-events-none select-none z-20">
+    <div className="relative w-full h-full flex flex-col justify-between p-4 md:p-12 pointer-events-none select-none z-20 overflow-hidden">
       {/* Top Header */}
-      <div className="flex justify-between items-center w-full max-w-7xl mx-auto pointer-events-auto">
+      <div className="flex flex-col sm:flex-row justify-between items-center w-full max-w-7xl mx-auto pointer-events-auto gap-3">
         <div className="flex items-center gap-3">
           <span className="w-2.5 h-2.5 bg-nitro-red rounded-full shadow-[0_0_12px_#ff3b00]" />
           <span className="font-mono text-xs uppercase tracking-widest text-nitro-text font-bold">
@@ -84,7 +84,7 @@ export function ProductExplorer({ onCategorySelect }: ProductExplorerProps) {
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
-          className={`cursor-grab active:cursor-grabbing px-4 py-2 rounded-full border text-xs font-mono tracking-widest uppercase transition-all duration-300 ${
+          className={`cursor-grab active:cursor-grabbing px-4 py-2 rounded-full border text-[10px] sm:text-xs font-mono tracking-widest uppercase transition-all duration-300 ${
             isManualDrag
               ? 'bg-nitro-red/20 border-nitro-red text-nitro-red shadow-[0_0_15px_rgba(255,59,0,0.3)]'
               : 'bg-nitro-card/80 border-nitro-border text-slate-400 hover:text-white'
@@ -95,23 +95,24 @@ export function ProductExplorer({ onCategorySelect }: ProductExplorerProps) {
       </div>
 
       {/* Center Description */}
-      <div className="max-w-xl mx-auto text-center space-y-2 pointer-events-none my-auto">
-        <h3 className="text-3xl md:text-5xl font-black tracking-tight uppercase text-white drop-shadow-xl">
+      <div className="max-w-xl mx-auto text-center space-y-2 pointer-events-none my-auto px-4">
+        <h3 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight uppercase text-white drop-shadow-xl">
           {categoryMap[activeCategory].label}
         </h3>
-        <p className="text-xs md:text-sm font-mono text-slate-300 tracking-widest uppercase">
+        <p className="text-xs sm:text-sm font-mono text-slate-300 tracking-widest uppercase">
           {categoryMap[activeCategory].desc}
         </p>
       </div>
 
       {/* Bottom Category Navigation Tabs */}
-      <div className="w-full max-w-5xl mx-auto pointer-events-auto">
-        <div className="flex flex-wrap justify-center gap-2 md:gap-3 bg-nitro-card/90 backdrop-blur-md border border-nitro-border rounded-2xl p-2.5 shadow-2xl">
+      <div className="w-full max-w-5xl mx-auto pointer-events-auto px-2">
+        <div className="flex flex-nowrap sm:flex-wrap justify-start sm:justify-center gap-2 md:gap-3 bg-nitro-card/90 backdrop-blur-md border border-nitro-border rounded-2xl p-2.5 shadow-2xl overflow-x-auto max-w-full">
           {(Object.keys(categoryMap) as ExplorerCategory[]).map((cat) => (
             <button
               key={cat}
               onClick={() => handleCategoryClick(cat)}
-              className={`px-4 py-2 rounded-xl font-mono text-xs font-bold tracking-wider uppercase transition-all duration-300 ${
+              aria-label={`Explore ${cat} features`}
+              className={`px-3.5 sm:px-4 py-2 rounded-xl font-mono text-[11px] sm:text-xs font-bold tracking-wider uppercase whitespace-nowrap transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-nitro-red focus-visible:ring-offset-2 focus-visible:ring-offset-nitro-bg ${
                 activeCategory === cat
                   ? 'bg-nitro-red text-white shadow-[0_0_15px_rgba(255,59,0,0.4)] scale-105'
                   : 'bg-nitro-bg/60 text-slate-400 hover:text-white hover:bg-nitro-border/50'
