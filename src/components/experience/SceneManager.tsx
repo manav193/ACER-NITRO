@@ -14,7 +14,7 @@ import { KeyboardSection } from '@/components/sections/KeyboardSection';
 import { PortsSection } from '@/components/sections/PortsSection';
 import { SpecOverviewSection } from '@/components/sections/SpecOverviewSection';
 import { FinaleSection } from '@/components/sections/FinaleSection';
-import { ProductExplorer, ExplorerCategory } from '@/components/explorer/ProductExplorer';
+import { ProductExplorer } from '@/components/explorer/ProductExplorer';
 
 import { DevModelNotice } from '@/components/ui/DevModelNotice';
 import { DebugPanel } from '@/components/ui/DebugPanel';
@@ -25,6 +25,7 @@ import { LightingPresetName } from '@/lib/lightingPresets';
 import { KeyboardBacklightState } from '@/lib/keyboardLighting';
 import { FanHighlightMode, KeyboardHighlightMode, PortHighlightMode } from '@/components/3d/LaptopModel';
 import { createMasterStoryTimeline } from '@/animations/storyTimeline';
+import { LaptopPartRegistry } from '@/lib/partRegistry';
 
 const NitroScene = dynamic(
   () => import('@/components/3d/NitroScene').then((mod) => mod.NitroScene),
@@ -36,6 +37,7 @@ export function SceneManager() {
   const [webglSupported, setWebglSupported] = useState(true);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [isRealGLB, setIsRealGLB] = useState(false);
+  const [registryInfo, setRegistryInfo] = useState<LaptopPartRegistry>({});
 
   // Active Telemetry & Presets
   const [activeSceneIndex, setActiveSceneIndex] = useState(1);
@@ -107,7 +109,10 @@ export function SceneManager() {
           keyboardHighlight={keyboardHighlight}
           portHighlight={portHighlight}
           showAirflow={showAirflow}
-          onModelLoaded={(isReal) => setIsRealGLB(isReal)}
+          onModelLoaded={(isReal, reg) => {
+            setIsRealGLB(isReal);
+            if (reg) setRegistryInfo(reg);
+          }}
         />
       </div>
 
@@ -276,6 +281,7 @@ export function SceneManager() {
           isRealGLB={isRealGLB}
           activeSceneName={activeSceneName}
           scrollProgress={scrollProgress}
+          registryInfo={registryInfo}
           onCameraChange={(preset) => setCameraPreset(preset)}
           onLightingChange={(preset) => setLightingPreset(preset)}
           onBacklightChange={(state) => setBacklightState(state)}

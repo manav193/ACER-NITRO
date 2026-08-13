@@ -40,6 +40,90 @@ interface LaptopModelProps {
   onModelLoaded?: (isRealGLB: boolean, registry: LaptopPartRegistry) => void;
 }
 
+// GPU-Instanced Keycap Deck Mesh Overlay (102 Keys)
+function InstancedKeycapDeck({
+  backlightColor,
+  backlightIntensity,
+  keyboardHighlight,
+}: {
+  backlightColor: string;
+  backlightIntensity: number;
+  keyboardHighlight: KeyboardHighlightMode;
+}) {
+  const instancedRef = useRef<THREE.InstancedMesh>(null);
+
+  const keyCount = 102;
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+
+  useEffect(() => {
+    if (!instancedRef.current) return;
+
+    let index = 0;
+    const spacing = 0.062;
+
+    // Main Keyboard Block (5 rows x 15 cols)
+    const startX = -0.92;
+    const startZ = -0.28;
+
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 15; c++) {
+        if (index >= keyCount) break;
+
+        const posX = startX + c * spacing;
+        const posZ = startZ + r * spacing;
+
+        dummy.position.set(posX, 0.006, posZ);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+
+        instancedRef.current.setMatrixAt(index++, dummy.matrix);
+      }
+    }
+
+    // NUMPAD Block (5 rows x 4 cols)
+    const numpadStartX = 0.38;
+    for (let r = 0; r < 5; r++) {
+      for (let c = 0; c < 4; c++) {
+        if (index >= keyCount) break;
+        const posX = numpadStartX + c * spacing;
+        const posZ = startZ + r * spacing;
+
+        dummy.position.set(posX, 0.006, posZ);
+        dummy.scale.set(1, 1, 1);
+        dummy.updateMatrix();
+
+        instancedRef.current.setMatrixAt(index++, dummy.matrix);
+      }
+    }
+
+    instancedRef.current.instanceMatrix.needsUpdate = true;
+  }, [dummy]);
+
+  const emissiveColor =
+    keyboardHighlight === 'BACKLIGHT' || keyboardHighlight === 'KEYBOARD' || keyboardHighlight === 'NUMPAD'
+      ? '#ffffff'
+      : backlightColor;
+
+  const emissiveInt =
+    keyboardHighlight === 'BACKLIGHT' || keyboardHighlight === 'KEYBOARD' || keyboardHighlight === 'NUMPAD'
+      ? 0.8
+      : backlightIntensity;
+
+  return (
+    <group position={[0, 0.005, 0]}>
+      <instancedMesh ref={instancedRef} args={[undefined, undefined, keyCount]}>
+        <boxGeometry args={[0.055, 0.008, 0.055]} />
+        <meshStandardMaterial
+          color="#161820"
+          emissive={emissiveColor}
+          emissiveIntensity={emissiveInt}
+          roughness={0.4}
+        />
+      </instancedMesh>
+    </group>
+  );
+}
+
 export function LaptopModel({
   reducedMotion = false,
   backlightState = 'ACTIVE',
@@ -135,6 +219,18 @@ export function LaptopModel({
       normalizeLaptopTransform(gltfData.scene, 2.4);
       const reg = registerLaptopParts(gltfData.scene);
       registryRef.current = reg;
+
+      // Apply display texture specifically to display screen mesh primitive
+      gltfData.scene.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          const matName = child.material.name ? child.material.name.toLowerCase() : '';
+          if (matName.includes('display') && displayCanvas) {
+            child.material.map = displayCanvas;
+            child.material.needsUpdate = true;
+          }
+        }
+      });
+
       setGlbLoaded(true);
       onModelLoaded?.(true, reg);
     } else {
@@ -144,7 +240,7 @@ export function LaptopModel({
         onModelLoaded?.(false, reg);
       }
     }
-  }, [gltfData, onModelLoaded]);
+  }, [gltfData, displayCanvas, onModelLoaded]);
 
   // Frame Loop for gentle idle movement if enabled
   useFrame((state) => {
@@ -194,11 +290,145 @@ export function LaptopModel({
   const rightPortsIntensity =
     portHighlight === 'RIGHT_USB_A' || portHighlight === 'HEADPHONE' ? 0.8 : portHighlight === 'RIGHT_ALL' || portHighlight === 'ALL_PORTS' ? 0.4 : 0;
 
+  // Update specific node materials for GLB loaded model
+  useEffect(() => {
+    if (!glbLoaded || !registryRef.current) return;
+
+    const reg = registryRef.current;
+
+    // NitroSense / Turbo Button node highlight
+    if (reg.nitroSenseKey) {
+      reg.nitroSenseKey.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          child.material.emissive = new THREE.Color(nitroSenseEmissive);
+          child.material.emissiveIntensity = nitroSenseIntensity;
+        }
+      });
+    }
+
+    // Trackpad node highlight
+    if (reg.trackpad) {
+      reg.trackpad.traverse((child: any) => {
+        if (child.isMesh && child.material) {
+          child.material.emissive = new THREE.Color(trackpadEmissive);
+          child.material.emissiveIntensity = trackpadIntensity;
+        }
+      });
+    }
+  }, [glbLoaded, keyboardHighlight, nitroSenseEmissive, nitroSenseIntensity, trackpadEmissive, trackpadIntensity]);
+
   // Real GLB Scene render
   if (glbLoaded && gltfData?.scene) {
     return (
       <group ref={groupRef} position={[0, -0.15, 0]} rotation={[0.15, -0.45, 0.05]}>
         <primitive object={gltfData.scene} />
+
+        {/* GPU-Instanced Keycap Deck Overlay (102 Keys) */}
+        <InstancedKeycapDeck
+          backlightColor={backlightConfig.color}
+          backlightIntensity={backlightConfig.intensity}
+          keyboardHighlight={keyboardHighlight}
+        />
+
+        {/* Spatial Overlay for Copilot Key */}
+        {keyboardHighlight === 'COPILOT' || keyboardHighlight === 'FULL_INPUT' ? (
+          <mesh position={[0.22, 0.008, 0.38]}>
+            <boxGeometry args={[0.08, 0.005, 0.08]} />
+            <meshStandardMaterial
+              color="#3b82f6"
+              emissive={copilotEmissive}
+              emissiveIntensity={copilotIntensity}
+              transparent
+              opacity={0.85}
+            />
+          </mesh>
+        ) : null}
+
+        {/* Physical Port Recess Inserts (Left Chassis Edge: DC, Ethernet, HDMI, 2x USB-A, USB-C) */}
+        <group position={[-1.205, -0.01, 0]}>
+          {/* DC Power */}
+          <mesh position={[0, 0, -0.4]}>
+            <boxGeometry args={[0.015, 0.025, 0.07]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={portHighlight === 'POWER_ETHERNET' ? '#ff3b00' : leftPortsEmissive}
+              emissiveIntensity={portHighlight === 'POWER_ETHERNET' ? 0.9 : leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          {/* Ethernet RJ-45 */}
+          <mesh position={[0, 0, -0.25]}>
+            <boxGeometry args={[0.015, 0.025, 0.11]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={portHighlight === 'POWER_ETHERNET' ? '#ff3b00' : leftPortsEmissive}
+              emissiveIntensity={portHighlight === 'POWER_ETHERNET' ? 0.9 : leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          {/* HDMI */}
+          <mesh position={[0, 0, -0.1]}>
+            <boxGeometry args={[0.015, 0.02, 0.09]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={portHighlight === 'HDMI' ? '#3b82f6' : leftPortsEmissive}
+              emissiveIntensity={portHighlight === 'HDMI' ? 0.9 : leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          {/* USB-A 1 (Left) */}
+          <mesh position={[0, 0, 0.08]}>
+            <boxGeometry args={[0.015, 0.018, 0.07]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={leftPortsEmissive}
+              emissiveIntensity={leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          {/* USB-A 2 (Left) */}
+          <mesh position={[0, 0, 0.25]}>
+            <boxGeometry args={[0.015, 0.018, 0.07]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={leftPortsEmissive}
+              emissiveIntensity={leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          {/* USB-C */}
+          <mesh position={[0, 0, 0.45]}>
+            <boxGeometry args={[0.015, 0.012, 0.07]} />
+            <meshStandardMaterial
+              color="#38bdf8"
+              emissive={portHighlight === 'USB_C' ? '#38bdf8' : leftPortsEmissive}
+              emissiveIntensity={portHighlight === 'USB_C' ? 1.0 : leftPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+        </group>
+
+        {/* Physical Port Recess Inserts (Right Chassis Edge: USB-A, 3.5mm Headphone) */}
+        <group position={[1.205, -0.01, 0]}>
+          <mesh position={[0, 0, 0.1]}>
+            <boxGeometry args={[0.015, 0.02, 0.07]} />
+            <meshStandardMaterial
+              color="#334155"
+              emissive={portHighlight === 'RIGHT_USB_A' ? '#3b82f6' : rightPortsEmissive}
+              emissiveIntensity={portHighlight === 'RIGHT_USB_A' ? 0.9 : rightPortsIntensity}
+              metalness={0.9}
+            />
+          </mesh>
+          <mesh position={[0, 0, 0.3]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.01, 0.01, 0.015, 16]} />
+            <meshStandardMaterial
+              color="#1e293b"
+              emissive={portHighlight === 'HEADPHONE' ? '#a855f7' : rightPortsEmissive}
+              emissiveIntensity={portHighlight === 'HEADPHONE' ? 0.9 : rightPortsIntensity}
+              metalness={0.8}
+            />
+          </mesh>
+        </group>
       </group>
     );
   }

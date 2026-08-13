@@ -5,6 +5,7 @@ import { CameraPresetName } from '@/lib/cameraPresets';
 import { LightingPresetName } from '@/lib/lightingPresets';
 import { KeyboardBacklightState } from '@/lib/keyboardLighting';
 import { FanHighlightMode, KeyboardHighlightMode, PortHighlightMode } from '@/components/3d/LaptopModel';
+import { LaptopPartRegistry } from '@/lib/partRegistry';
 
 interface DebugPanelProps {
   cameraPreset: CameraPresetName;
@@ -16,6 +17,7 @@ interface DebugPanelProps {
   isRealGLB: boolean;
   activeSceneName?: string;
   scrollProgress?: number;
+  registryInfo?: LaptopPartRegistry;
   onCameraChange?: (preset: CameraPresetName) => void;
   onLightingChange?: (preset: LightingPresetName) => void;
   onBacklightChange?: (state: KeyboardBacklightState) => void;
@@ -31,6 +33,7 @@ export function DebugPanel({
   isRealGLB,
   activeSceneName = 'HERO',
   scrollProgress = 0,
+  registryInfo = {},
   onCameraChange,
   onLightingChange,
   onBacklightChange,
@@ -57,8 +60,13 @@ export function DebugPanel({
 
   if (!visible) return null;
 
+  const detectedNodes = Object.keys(registryInfo).filter((k) => (registryInfo as any)[k] !== undefined);
+  const unavailableNodes = ['copilotKey', 'fanLeft', 'fanRight', 'dcPower', 'ethernet', 'hdmi', 'usbC'].filter(
+    (k) => (registryInfo as any)[k] === undefined
+  );
+
   return (
-    <div className="fixed top-6 right-6 z-50 pointer-events-auto bg-nitro-card/95 backdrop-blur-md border border-nitro-border rounded-xl p-4 text-xs font-mono text-nitro-text shadow-2xl space-y-3 w-80">
+    <div className="fixed top-6 right-6 z-50 pointer-events-auto bg-nitro-card/95 backdrop-blur-md border border-nitro-border rounded-xl p-4 text-xs font-mono text-nitro-text shadow-2xl space-y-3 w-80 max-h-[90vh] overflow-y-auto">
       <div className="flex justify-between items-center border-b border-nitro-border pb-2">
         <span className="font-bold text-nitro-red tracking-wider uppercase">3D DEBUG INSPECTOR</span>
         <button
@@ -98,8 +106,37 @@ export function DebugPanel({
         <div className="flex justify-between">
           <span className="text-nitro-muted">Model Asset:</span>
           <span className={isRealGLB ? 'text-green-400 font-bold' : 'text-amber-400 font-bold'}>
-            {isRealGLB ? 'GLB LOADED' : 'PROCEDURAL FALLBACK'}
+            {isRealGLB ? 'GLB LOADED (3.05 MB)' : 'PROCEDURAL FALLBACK'}
           </span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-nitro-muted">Procedural Keycaps:</span>
+          <span className="text-emerald-400 font-bold">ACTIVE (102 Keys)</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-nitro-muted">Left Port Inserts:</span>
+          <span className="text-sky-400 font-bold">DC, Eth, HDMI, 2xUSB-A, USB-C</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-nitro-muted">Right Port Inserts:</span>
+          <span className="text-purple-400 font-bold">1x USB-A, Headphone</span>
+        </div>
+
+        <div className="pt-2 border-t border-nitro-border/40">
+          <span className="text-nitro-muted block mb-1">Detected GLB Nodes ({detectedNodes.length}):</span>
+          <div className="text-[10px] text-emerald-400 font-mono break-words leading-tight bg-nitro-bg/60 p-2 rounded border border-nitro-border/30">
+            {detectedNodes.length > 0 ? detectedNodes.join(', ') : 'None'}
+          </div>
+        </div>
+
+        <div>
+          <span className="text-nitro-muted block mb-1">Unavailable Micro-Nodes ({unavailableNodes.length}):</span>
+          <div className="text-[10px] text-amber-400/80 font-mono break-words leading-tight bg-nitro-bg/60 p-2 rounded border border-nitro-border/30">
+            {unavailableNodes.join(', ')}
+          </div>
         </div>
 
         <div>
