@@ -29,7 +29,7 @@ export function registerLaptopParts(root: THREE.Object3D): LaptopPartRegistry {
   root.traverse((node) => {
     const name = node.name.toLowerCase();
 
-    if (name.includes('chassis') || name.includes('base') || name.includes('body') || name === 'case') {
+    if (name.includes('chassis') || name.includes('base') || name.includes('body') || name.includes('case')) {
       registry.chassis = node;
     } else if (name.includes('lid') || name.includes('top') || name.includes('logo') || name.includes('back')) {
       registry.lid = node;
@@ -41,7 +41,7 @@ export function registerLaptopParts(root: THREE.Object3D): LaptopPartRegistry {
       registry.numpad = node;
     } else if (name.includes('trackpad') || name.includes('touchpad')) {
       registry.trackpad = node;
-    } else if (name.includes('nitrosense') || name.includes('nitro_key') || name.includes('turbo_button')) {
+    } else if (name.includes('nitrosense') || name.includes('nitro_key') || name.includes('turbo')) {
       registry.nitroSenseKey = node;
     } else if (name.includes('copilot')) {
       registry.copilotKey = node;
